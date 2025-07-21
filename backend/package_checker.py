@@ -43,7 +43,20 @@ class PackageChecker:
         """Check if npm package exists"""
         url = f"{self.registries['npm']}/{package_name}"
         response = await client.get(url)
-        return response.status_code == 200
+        
+        if response.status_code != 200:
+            return False
+            
+        # Check if package is unpublished
+        try:
+            data = response.json()
+            # If the package has an "unpublished" field, it means it was deleted
+            if "time" in data and "unpublished" in data["time"]:
+                return False
+            return True
+        except:
+            # If we can't parse JSON, assume it exists if status was 200
+            return True
     
     async def _check_pypi(self, client: httpx.AsyncClient, package_name: str) -> bool:
         """Check if PyPI package exists"""

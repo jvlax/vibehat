@@ -37,7 +37,7 @@ app.add_middleware(
 
 # Initialize services
 github_scanner = GitHubScanner(os.getenv("GITHUB_TOKEN"))
-package_checker = PackageChecker()
+package_checker = PackageChecker()  # Fixed: Added () to create instance
 package_publisher = PackagePublisher()
 
 @app.get("/")
@@ -65,12 +65,50 @@ async def scan_repository(
         # Scan repository for dependencies
         dependencies = await github_scanner.scan_repository(owner, repo)
         
-        # Check which packages don't exist
+        # Check which packages don't exist and filter out test packages
         missing_packages = []
+        published_packages = []
+        
         for dep in dependencies:
+            # Skip test packages
+            if package_publisher._is_test_package(dep.name, dep.ecosystem):
+                continue
+                
             exists = await package_checker.check_package_exists(dep.name, dep.ecosystem)
             if not exists:
                 missing_packages.append(dep)
+                
+                # Automatically publish the missing package
+                try:
+                    publish_result = await package_publisher.publish_warning_package(
+                        dep.name,
+                        dep.ecosystem,
+                        dep.file_path
+                    )
+                    
+                    if publish_result.get("success"):
+                        # Save publication record to database
+                        exploit_package = models.ExploitPackage(
+                            package_name=dep.name,
+                            ecosystem=dep.ecosystem,
+                            version=publish_result.get("version", "1.0.0"),
+                            published=True
+                        )
+                        db.add(exploit_package)
+                        
+                        # Add to published packages list for frontend
+                        published_packages.append({
+                            "name": dep.name,
+                            "ecosystem": dep.ecosystem,
+                            "version": publish_result.get("version", "1.0.0"),
+                            "registry_url": publish_result.get("npm_url") or publish_result.get("pypi_url"),
+                            "published_at": "just now",
+                            "source_file": dep.file_path
+                        })
+                        
+                except Exception as e:
+                    print(f"Failed to publish {dep.name}: {e}")
+                    # Continue with scan even if publishing fails
         
         # Save scan result to database
         scan_result = models.ScanResult(
@@ -86,7 +124,8 @@ async def scan_repository(
         db.commit()
         db.refresh(scan_result)
         
-        return schemas.ScanResult(
+        # Create response with published packages info
+        response_data = schemas.ScanResult(
             id=scan_result.id,
             repository_url=scan_result.repository_url,
             repository_owner=scan_result.repository_owner,
@@ -96,6 +135,12 @@ async def scan_repository(
             missing_packages=missing_packages,
             created_at=scan_result.created_at
         )
+        
+        # Add published packages to the response
+        response_dict = response_data.dict()
+        response_dict["published_packages"] = published_packages
+        
+        return response_dict
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -171,7 +216,6 @@ async def publish_warning_package(
                 published=True
             )
             db.add(exploit_package)
-            db.commit()
         
         return schemas.PublishResult(**result)
         

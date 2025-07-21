@@ -8,6 +8,14 @@ class Dependency(BaseModel):
     ecosystem: str  # npm, pypi, cargo, etc.
     file_path: str  # where it was found
 
+class PublishedPackage(BaseModel):
+    name: str
+    ecosystem: str
+    version: str
+    registry_url: str
+    published_at: str
+    source_file: Optional[str] = None
+
 class ScanRequest(BaseModel):
     repository_url: str
 
@@ -19,6 +27,7 @@ class ScanResult(BaseModel):
     total_dependencies: int
     missing_dependencies: int
     missing_packages: List[Dependency]
+    published_packages: Optional[List[PublishedPackage]] = []
     created_at: datetime
 
 class ExploitRequest(BaseModel):

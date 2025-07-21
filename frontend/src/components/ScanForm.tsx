@@ -16,6 +16,7 @@ export function ScanForm({ onScanComplete, setLoading }: ScanFormProps) {
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
   const [scanning, setScanning] = useState(false)
+  const [showAllPackages, setShowAllPackages] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,6 +50,12 @@ export function ScanForm({ onScanComplete, setLoading }: ScanFormProps) {
       setScanning(false)
     }
   }
+
+  const packagesToShow = showAllPackages 
+    ? result?.missing_packages || []
+    : (result?.missing_packages || []).slice(0, 10)
+
+  const hasMorePackages = result?.missing_packages && result.missing_packages.length > 10
 
   return (
     <div className="space-y-8">
@@ -105,7 +112,7 @@ export function ScanForm({ onScanComplete, setLoading }: ScanFormProps) {
               
               {/* Show published packages */}
               <div className="space-y-3 mt-6">
-                {result.missing_packages?.slice(0, 5).map((pkg: any, index: number) => (
+                {packagesToShow.map((pkg: any, index: number) => (
                   <div key={index} className="bg-black/20 rounded p-3 border border-white/10 text-left">
                     <div className="flex justify-between items-center">
                       <div>
@@ -118,10 +125,22 @@ export function ScanForm({ onScanComplete, setLoading }: ScanFormProps) {
                   </div>
                 ))}
                 
-                {result.missing_dependencies > 5 && (
-                  <div className="text-gray-400 text-sm">
-                    ... and {result.missing_dependencies - 5} more packages
-                  </div>
+                {hasMorePackages && !showAllPackages && (
+                  <button
+                    onClick={() => setShowAllPackages(true)}
+                    className="text-gray-400 hover:text-white text-sm mt-4 transition-colors"
+                  >
+                    Show all {result.missing_dependencies} packages...
+                  </button>
+                )}
+                
+                {hasMorePackages && showAllPackages && (
+                  <button
+                    onClick={() => setShowAllPackages(false)}
+                    className="text-gray-400 hover:text-white text-sm mt-4 transition-colors"
+                  >
+                    Show less
+                  </button>
                 )}
               </div>
             </div>

@@ -1,6 +1,8 @@
 import httpx
 import re
 import json
+import subprocess
+import sys
 from typing import List, Dict, Any
 from schemas import Dependency
 import github3
@@ -400,30 +402,46 @@ class GitHubScanner:
             return False
             
         if ecosystem == 'npm':
-            # Skip Node.js built-in modules
-            node_builtins = {
-                'fs', 'path', 'http', 'https', 'url', 'crypto', 'os', 'util', 
-                'events', 'stream', 'buffer', 'child_process', 'cluster', 
-                'dgram', 'dns', 'net', 'querystring', 'readline', 'repl',
-                'string_decoder', 'tls', 'tty', 'vm', 'zlib', 'assert',
-                'console', 'constants', 'domain', 'punycode', 'timers'
-            }
-            return package_name not in node_builtins
+            # Test if module can be required without external dependencies
+            return not self._is_nodejs_builtin_module(package_name)
             
         elif ecosystem == 'pypi':
-            # Skip Python standard library modules
-            python_builtins = {
-                'os', 'sys', 'json', 're', 'time', 'datetime', 'math', 'random',
-                'collections', 'itertools', 'functools', 'operator', 'pathlib',
-                'urllib', 'http', 'email', 'html', 'xml', 'sqlite3', 'csv',
-                'configparser', 'logging', 'unittest', 'doctest', 'pdb',
-                'profile', 'timeit', 'trace', 'gc', 'weakref', 'copy',
-                'pickle', 'copyreg', 'shelve', 'marshal', 'dbm', 'sqlite3',
-                'zlib', 'gzip', 'bz2', 'lzma', 'zipfile', 'tarfile'
-            }
-            return package_name not in python_builtins
+            # Test if module can be imported without external dependencies
+            return not self._is_python_stdlib_module(package_name)
             
         return True
+    
+    def _is_python_stdlib_module(self, module_name: str) -> bool:
+        """Check if a module is part of Python standard library by trying to import it"""
+        try:
+            # Try to import the module in a subprocess with minimal environment
+            result = subprocess.run([
+                sys.executable, '-c', f'import {module_name}'
+            ], capture_output=True, timeout=2, text=True)  # Reduced timeout to 2 seconds
+            
+            # If it imports successfully without any errors, it's likely stdlib
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, Exception) as e:
+            # If there's any error or timeout, assume it's not stdlib
+            if isinstance(e, subprocess.TimeoutExpired):
+                print(f"DEBUG: Python stdlib check timeout for {module_name}")
+            return False
+    
+    def _is_nodejs_builtin_module(self, module_name: str) -> bool:
+        """Check if a module is a Node.js built-in by trying to require it"""
+        try:
+            # Try to require the module in a subprocess with minimal environment
+            result = subprocess.run([
+                'node', '-e', f'require("{module_name}")'
+            ], capture_output=True, timeout=2, text=True)  # Reduced timeout to 2 seconds
+            
+            # If it requires successfully without any errors, it's likely a built-in
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, Exception) as e:
+            # If there's any error or timeout, assume it's not a built-in
+            if isinstance(e, subprocess.TimeoutExpired):
+                print(f"DEBUG: Node.js builtin check timeout for {module_name}")
+            return False
     
     def _normalize_package_name(self, import_name: str, ecosystem: str) -> str:
         """Normalize import names to actual package names"""
