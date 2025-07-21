@@ -1,6 +1,6 @@
 'use client'
 
-import { ScanResult, Dependency } from '@/types'
+import { ScanResult, Dependency, PublishedPackage } from '@/types'
 import { formatDistanceToNow } from 'date-fns'
 import { useState } from 'react'
 
@@ -58,12 +58,13 @@ export function ScanResults({ results, loading }: ScanResultsProps) {
 
   if (loading) {
     return (
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+      <div className="glass rounded-xl p-8 border border-white/10">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-700 rounded w-1/4 mb-6"></div>
           <div className="space-y-3">
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+            <div className="h-4 bg-gray-700 rounded"></div>
+            <div className="h-4 bg-gray-700 rounded w-5/6"></div>
+            <div className="h-4 bg-gray-700 rounded w-3/4"></div>
           </div>
         </div>
       </div>
@@ -72,8 +73,10 @@ export function ScanResults({ results, loading }: ScanResultsProps) {
 
   if (results.length === 0) {
     return (
-      <div className="bg-white shadow rounded-lg p-6 text-center">
-        <p className="text-gray-500">No scan results yet. Start by scanning a repository above.</p>
+      <div className="glass rounded-xl p-12 text-center border border-white/10">
+        <div className="text-6xl mb-4">🔍</div>
+        <h3 className="text-xl font-semibold text-white mb-2">No Scan Results Yet</h3>
+        <p className="text-gray-400">Scan a repository above to see dependency analysis results</p>
       </div>
     )
   }
@@ -81,41 +84,46 @@ export function ScanResults({ results, loading }: ScanResultsProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium text-gray-900">Scan Results</h2>
+        <h2 className="text-2xl font-bold text-white flex items-center">
+          <span className="mr-3">📊</span>
+          Scan Results
+        </h2>
         
         {/* Filter Controls */}
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1 text-sm rounded-md ${
-              filter === 'all' 
-                ? 'bg-blue-100 text-blue-700 border border-blue-300' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            All ({results[0]?.missing_dependencies || 0})
-          </button>
-          <button
-            onClick={() => setFilter('package-files')}
-            className={`px-3 py-1 text-sm rounded-md ${
-              filter === 'package-files' 
-                ? 'bg-orange-100 text-orange-700 border border-orange-300' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Package Files ({results[0] ? filterDependencies(results[0].missing_packages, 'package-files').length : 0})
-          </button>
-          <button
-            onClick={() => setFilter('source-code')}
-            className={`px-3 py-1 text-sm rounded-md ${
-              filter === 'source-code' 
-                ? 'bg-green-100 text-green-700 border border-green-300' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Source Code ({results[0] ? filterDependencies(results[0].missing_packages, 'source-code').length : 0})
-          </button>
-        </div>
+        {results.length > 0 && results[0].missing_dependencies > 0 && (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 text-sm rounded-lg transition-all ${
+                filter === 'all' 
+                  ? 'bg-blue-600 text-white glow-blue' 
+                  : 'glass text-gray-300 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              All ({results[0]?.missing_dependencies || 0})
+            </button>
+            <button
+              onClick={() => setFilter('package-files')}
+              className={`px-4 py-2 text-sm rounded-lg transition-all ${
+                filter === 'package-files' 
+                  ? 'bg-orange-600 text-white glow-red' 
+                  : 'glass text-gray-300 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Package Files ({results[0] ? filterDependencies(results[0].missing_packages, 'package-files').length : 0})
+            </button>
+            <button
+              onClick={() => setFilter('source-code')}
+              className={`px-4 py-2 text-sm rounded-lg transition-all ${
+                filter === 'source-code' 
+                  ? 'bg-green-600 text-white glow-green' 
+                  : 'glass text-gray-300 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Source Code ({results[0] ? filterDependencies(results[0].missing_packages, 'source-code').length : 0})
+            </button>
+          </div>
+        )}
       </div>
       
       {results.map((result) => {
@@ -125,63 +133,77 @@ export function ScanResults({ results, loading }: ScanResultsProps) {
         const sourceCodeDeps = filterDependencies(result.missing_packages, 'source-code')
         
         return (
-          <div key={result.id} className="bg-white shadow rounded-lg">
+          <div key={result.id} className="glass rounded-xl border border-white/10 card-hover">
             {/* Compact Header - Always Visible */}
             <div 
-              className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+              className="p-6 cursor-pointer transition-all"
               onClick={() => toggleExpanded(result.id)}
             >
               <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-6">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-xl font-bold text-white mb-1">
                       {result.repository_owner}/{result.repository_name}
                     </h3>
-                    <p className="text-sm text-gray-500">
-                      {formatDistanceToNow(new Date(result.created_at), { addSuffix: true })}
+                    <p className="text-sm text-gray-400">
+                      Scanned {formatDistanceToNow(new Date(result.created_at), { addSuffix: true })}
                     </p>
                   </div>
                   
                   {/* Quick Stats */}
-                  <div className="flex space-x-6 text-sm">
+                  <div className="flex space-x-6">
                     <div className="text-center">
-                      <div className="text-lg font-semibold text-gray-900">
+                      <div className="text-2xl font-bold text-blue-400">
                         {result.total_dependencies}
                       </div>
-                      <div className="text-gray-500 text-xs">Total</div>
+                      <div className="text-gray-400 text-xs">Total</div>
                     </div>
                     <div className="text-center">
-                      <div className={`text-lg font-semibold ${
-                        result.missing_dependencies > 0 ? 'text-red-600' : 'text-green-600'
+                      <div className={`text-2xl font-bold ${
+                        result.missing_dependencies > 0 ? 'text-red-400' : 'text-green-400'
                       }`}>
                         {result.missing_dependencies}
                       </div>
-                      <div className="text-gray-500 text-xs">Missing</div>
+                      <div className="text-gray-400 text-xs">Missing</div>
                     </div>
                     {packageFileDeps.length > 0 && (
                       <div className="text-center">
-                        <div className="text-lg font-semibold text-orange-600">
+                        <div className="text-xl font-bold text-orange-400">
                           {packageFileDeps.length}
                         </div>
-                        <div className="text-gray-500 text-xs">Package Files</div>
+                        <div className="text-gray-400 text-xs">Package Files</div>
                       </div>
                     )}
                     {sourceCodeDeps.length > 0 && (
                       <div className="text-center">
-                        <div className="text-lg font-semibold text-green-600">
+                        <div className="text-xl font-bold text-green-400">
                           {sourceCodeDeps.length}
                         </div>
-                        <div className="text-gray-500 text-xs">Source Code</div>
+                        <div className="text-gray-400 text-xs">Source Code</div>
+                      </div>
+                    )}
+                    {result.published_packages && result.published_packages.length > 0 && (
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-blue-400">
+                          {result.published_packages.length}
+                        </div>
+                        <div className="text-gray-400 text-xs">Published</div>
                       </div>
                     )}
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-4">
                   {result.missing_dependencies === 0 ? (
-                    <span className="text-green-600 font-medium text-sm">✅ Secure</span>
+                    <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30">
+                      <span className="text-green-400">✅</span>
+                      <span className="text-green-300 font-medium text-sm">Secure</span>
+                    </div>
                   ) : (
-                    <span className="text-red-600 font-medium text-sm">⚠️ Vulnerable</span>
+                    <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-red-500/20 border border-red-500/30">
+                      <span className="text-red-400">⚠️</span>
+                      <span className="text-red-300 font-medium text-sm">Vulnerable</span>
+                    </div>
                   )}
                   <svg 
                     className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -196,30 +218,57 @@ export function ScanResults({ results, loading }: ScanResultsProps) {
             </div>
 
             {/* Expanded Details */}
-            {isExpanded && result.missing_dependencies > 0 && (
-              <div className="border-t border-gray-200 p-4">
-                <h4 className="text-md font-medium text-red-600 mb-3">
-                  Missing Dependencies - {filter === 'all' ? 'All' : filter === 'package-files' ? 'Package Files' : 'Source Code'} 
-                  ({filteredPackages.length})
-                </h4>
-                
-                {filteredPackages.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No dependencies match the current filter.</p>
-                ) : (
-                  <div className="grid gap-2 max-h-96 overflow-y-auto">
-                    {filteredPackages.map((dep, index) => (
-                      <MissingPackageCard key={index} dependency={dep} />
-                    ))}
+            {isExpanded && (
+              <div className="border-t border-white/10">
+                {/* Published Packages Section */}
+                {result.published_packages && result.published_packages.length > 0 && (
+                  <div className="p-6 border-b border-white/10">
+                    <h4 className="text-lg font-semibold text-blue-400 mb-4 flex items-center">
+                      <span className="mr-2">🚀</span>
+                      Published Warning Packages ({result.published_packages.length})
+                    </h4>
+                    <div className="grid gap-3">
+                      {result.published_packages.map((pkg, index) => (
+                        <PublishedPackageCard key={index} package={pkg} />
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {isExpanded && result.missing_dependencies === 0 && (
-              <div className="border-t border-gray-200 p-4">
-                <div className="text-green-600 font-medium">
-                  ✅ All dependencies exist in their respective registries
-                </div>
+                {/* Missing Dependencies Section */}
+                {result.missing_dependencies > 0 && (
+                  <div className="p-6">
+                    <h4 className="text-lg font-semibold text-red-400 mb-4 flex items-center">
+                      <span className="mr-2">⚠️</span>
+                      Missing Dependencies - {filter === 'all' ? 'All' : filter === 'package-files' ? 'Package Files' : 'Source Code'} 
+                      ({filteredPackages.length})
+                    </h4>
+                    
+                    {filteredPackages.length === 0 ? (
+                      <p className="text-gray-400 text-sm">No dependencies match the current filter.</p>
+                    ) : (
+                      <div className="grid gap-3 max-h-96 overflow-y-auto">
+                        {filteredPackages.map((dep, index) => (
+                          <MissingPackageCard key={index} dependency={dep} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {result.missing_dependencies === 0 && (
+                  <div className="p-6">
+                    <div className="text-center py-8">
+                      <div className="text-4xl mb-2">🛡️</div>
+                      <div className="text-green-400 font-semibold text-lg">
+                        All dependencies exist in their respective registries
+                      </div>
+                      <p className="text-gray-400 text-sm mt-1">
+                        No dependency confusion vulnerabilities detected
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -229,36 +278,98 @@ export function ScanResults({ results, loading }: ScanResultsProps) {
   )
 }
 
-function MissingPackageCard({ dependency }: { dependency: Dependency }) {
+function PublishedPackageCard({ package: pkg }: { package: PublishedPackage }) {
+  const getEcosystemIcon = (ecosystem: string) => {
+    const icons = {
+      npm: '📦',
+      pypi: '🐍',
+      cargo: '⚙️',
+      go: '🐹'
+    }
+    return icons[ecosystem as keyof typeof icons] || '📦'
+  }
+
   const getEcosystemColor = (ecosystem: string) => {
     const colors = {
-      npm: 'bg-red-100 text-red-800',
-      pypi: 'bg-blue-100 text-blue-800',
-      cargo: 'bg-orange-100 text-orange-800',
-      go: 'bg-cyan-100 text-cyan-800',
+      npm: 'text-red-400 bg-red-500/10 border-red-500/20',
+      pypi: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+      cargo: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+      go: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20'
     }
-    return colors[ecosystem as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+    return colors[ecosystem as keyof typeof colors] || 'text-gray-400 bg-gray-500/10 border-gray-500/20'
   }
 
   return (
-    <div className="border border-red-200 rounded-lg p-3 bg-red-50">
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="font-medium text-gray-900">{dependency.name}</div>
-          <div className="text-sm text-gray-600">
-            {dependency.version && `Version: ${dependency.version}`}
+    <div className="glass rounded-lg p-4 border border-green-500/20 bg-green-500/5">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <span className="text-xl">{getEcosystemIcon(pkg.ecosystem)}</span>
+          <div>
+            <div className="font-mono font-semibold text-white">{pkg.name}</div>
+            <div className="text-sm text-gray-400">v{pkg.version}</div>
           </div>
-          <div className="text-sm text-gray-500">
-            Found in: {dependency.file_path}
+          <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getEcosystemColor(pkg.ecosystem)}`}>
+            {pkg.ecosystem}
+          </span>
+        </div>
+        <a
+          href={pkg.registry_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-1"
+        >
+          <span>View</span>
+          <span>↗</span>
+        </a>
+      </div>
+    </div>
+  )
+}
+
+function MissingPackageCard({ dependency }: { dependency: Dependency }) {
+  const getEcosystemIcon = (ecosystem: string) => {
+    const icons = {
+      npm: '📦',
+      pypi: '🐍',
+      cargo: '⚙️',
+      go: '🐹'
+    }
+    return icons[ecosystem as keyof typeof icons] || '📦'
+  }
+
+  const getEcosystemColor = (ecosystem: string) => {
+    const colors = {
+      npm: 'text-red-400 bg-red-500/10 border-red-500/20',
+      pypi: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+      cargo: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+      go: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20'
+    }
+    return colors[ecosystem as keyof typeof colors] || 'text-gray-400 bg-gray-500/10 border-gray-500/20'
+  }
+
+  return (
+    <div className="glass rounded-lg p-4 border border-red-500/20 bg-red-500/5">
+      <div className="flex justify-between items-start">
+        <div className="flex items-start space-x-3">
+          <span className="text-xl">{getEcosystemIcon(dependency.ecosystem)}</span>
+          <div className="flex-1">
+            <div className="font-mono font-semibold text-white">{dependency.name}</div>
+            {dependency.version && (
+              <div className="text-sm text-gray-400">Version: {dependency.version}</div>
+            )}
+            <div className="text-sm text-gray-400 mt-1">
+              📄 {dependency.file_path}
+            </div>
           </div>
         </div>
-        <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getEcosystemColor(dependency.ecosystem)}`}>
+        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getEcosystemColor(dependency.ecosystem)}`}>
           {dependency.ecosystem}
         </span>
       </div>
       
-      <div className="mt-2 text-sm text-red-600">
-        ⚠️ This package doesn't exist and could be exploited
+      <div className="mt-3 flex items-center space-x-2 text-sm text-red-400">
+        <span>⚠️</span>
+        <span>Package doesn't exist - potential dependency confusion target</span>
       </div>
     </div>
   )

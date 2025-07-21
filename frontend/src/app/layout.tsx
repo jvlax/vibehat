@@ -5,8 +5,9 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'VibeHat - AI Dependency Exploit Scanner',
-  description: 'Scan GitHub repositories for missing dependencies that AI might hallucinate',
+  title: 'VibeHat - Dependency Confusion Scanner',
+  description: 'Scan repositories for missing dependencies and prevent supply chain attacks',
+  keywords: ['security', 'dependency', 'scanner', 'supply chain', 'vulnerability'],
 }
 
 export default function RootLayout({
@@ -15,8 +16,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" className="dark">
+      <body className={`${inter.className} dark bg-black text-white min-h-screen`}>
+        {children}
+      </body>
     </html>
   )
 } 
