@@ -24,6 +24,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://vibehat:vibehat_dev@db:5432/vibehat
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - NPM_TOKEN=${NPM_TOKEN}
+      - PYPI_TOKEN=${PYPI_TOKEN}
+      - WARNING_WEBSITE=${WARNING_WEBSITE:-https://vibehat.dev/dependency-confusion}
     depends_on:
       - db
     volumes:

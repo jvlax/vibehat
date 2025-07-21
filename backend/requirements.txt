@@ -11,4 +11,7 @@ github3.py==4.0.1
 packaging==23.2
 requests==2.31.0
 beautifulsoup4==4.12.2
-lxml==4.9.3 
+lxml==4.9.3
+twine==4.0.2
+setuptools==69.0.0
+wheel==0.42.0 

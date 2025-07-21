@@ -12,6 +12,7 @@ import models
 import schemas
 from github_scanner import GitHubScanner
 from package_checker import PackageChecker
+from package_publisher import PackagePublisher
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -30,6 +31,7 @@ app.add_middleware(
 # Initialize services
 github_scanner = GitHubScanner(os.getenv("GITHUB_TOKEN"))
 package_checker = PackageChecker()
+package_publisher = PackagePublisher()
 
 @app.get("/")
 async def root():
@@ -122,4 +124,136 @@ async def generate_exploit_package(exploit_request: schemas.ExploitRequest):
         "ecosystem": exploit_request.ecosystem,
         "message": f"Exploit package '{exploit_request.package_name}' structure generated",
         "warning": "This is a proof-of-concept demonstration of dependency confusion vulnerability"
-    } 
+    }
+
+@app.post("/publish/warning-package", response_model=schemas.PublishResult)
+async def publish_warning_package(
+    publish_request: schemas.PublishRequest,
+    db: Session = Depends(get_db)
+):
+    """Publish a warning package to prevent dependency confusion attacks"""
+    try:
+        # Check if we can publish this package (doesn't already exist)
+        can_publish = await package_publisher.check_if_can_publish(
+            publish_request.package_name, 
+            publish_request.ecosystem
+        )
+        
+        if not can_publish:
+            return schemas.PublishResult(
+                success=False,
+                package=publish_request.package_name,
+                ecosystem=publish_request.ecosystem,
+                message="Package already exists",
+                error="Cannot publish: package already exists in registry"
+            )
+        
+        # Publish the warning package
+        result = await package_publisher.publish_warning_package(
+            publish_request.package_name,
+            publish_request.ecosystem,
+            publish_request.source_file
+        )
+        
+        # Save publication record to database
+        if result.get("success"):
+            exploit_package = models.ExploitPackage(
+                package_name=publish_request.package_name,
+                ecosystem=publish_request.ecosystem,
+                version=result.get("version", "1.0.0"),
+                published=True
+            )
+            db.add(exploit_package)
+            db.commit()
+        
+        return schemas.PublishResult(**result)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/publish/batch-missing")
+async def publish_batch_missing_packages(
+    scan_id: int,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """Publish warning packages for all missing dependencies from a scan"""
+    try:
+        # Get scan result
+        scan_result = db.query(models.ScanResult).filter(models.ScanResult.id == scan_id).first()
+        if not scan_result:
+            raise HTTPException(status_code=404, detail="Scan result not found")
+        
+        missing_packages = json.loads(scan_result.scan_data) if scan_result.scan_data else []
+        
+        # Limit the number of packages we publish at once
+        packages_to_publish = missing_packages[:limit]
+        
+        published_results = []
+        for pkg_data in packages_to_publish:
+            # Check if already published
+            existing = db.query(models.ExploitPackage).filter(
+                models.ExploitPackage.package_name == pkg_data["name"],
+                models.ExploitPackage.ecosystem == pkg_data["ecosystem"]
+            ).first()
+            
+            if existing:
+                published_results.append({
+                    "package": pkg_data["name"],
+                    "ecosystem": pkg_data["ecosystem"],
+                    "status": "already_published",
+                    "success": True
+                })
+                continue
+            
+            # Publish warning package
+            try:
+                result = await package_publisher.publish_warning_package(
+                    pkg_data["name"],
+                    pkg_data["ecosystem"],
+                    pkg_data.get("file_path", "Unknown")
+                )
+                
+                if result.get("success"):
+                    exploit_package = models.ExploitPackage(
+                        package_name=pkg_data["name"],
+                        ecosystem=pkg_data["ecosystem"],
+                        version=result.get("version", "1.0.0"),
+                        published=True
+                    )
+                    db.add(exploit_package)
+                
+                published_results.append({
+                    "package": pkg_data["name"],
+                    "ecosystem": pkg_data["ecosystem"],
+                    "status": "published" if result.get("success") else "failed",
+                    "success": result.get("success", False),
+                    "error": result.get("error"),
+                    "url": result.get("npm_url") or result.get("pypi_url")
+                })
+                
+            except Exception as e:
+                published_results.append({
+                    "package": pkg_data["name"],
+                    "ecosystem": pkg_data["ecosystem"],
+                    "status": "error",
+                    "success": False,
+                    "error": str(e)
+                })
+        
+        db.commit()
+        
+        return {
+            "scan_id": scan_id,
+            "total_missing": len(missing_packages),
+            "attempted": len(packages_to_publish),
+            "results": published_results,
+            "summary": {
+                "published": len([r for r in published_results if r["status"] == "published"]),
+                "already_published": len([r for r in published_results if r["status"] == "already_published"]),
+                "failed": len([r for r in published_results if r["status"] in ["failed", "error"]])
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 

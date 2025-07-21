@@ -24,4 +24,19 @@ class ScanResult(BaseModel):
 class ExploitRequest(BaseModel):
     package_name: str
     ecosystem: str
-    version: Optional[str] = "1.0.0" 
+    version: Optional[str] = "1.0.0"
+
+class PublishRequest(BaseModel):
+    package_name: str
+    ecosystem: str
+    source_file: Optional[str] = None
+
+class PublishResult(BaseModel):
+    success: bool
+    package: str
+    ecosystem: str
+    version: Optional[str] = None
+    message: str
+    npm_url: Optional[str] = None
+    pypi_url: Optional[str] = None
+    error: Optional[str] = None 
