@@ -6,35 +6,9 @@ import { ScanResults } from '@/components/ScanResults'
 import { ScanResult } from '@/types'
 import axios from 'axios'
 
-// Made-up npm packages that don't exist and aren't in our test manifest
-// import superReactHelper from 'super-react-helper';  // Fake package for testing
-// const awesomeUtils = require('awesome-frontend-utils');  // Another fake package
-// import('demo-dynamic-package');  // Dynamic import of fake package
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function Home() {
-  const [scanResults, setScanResults] = useState<ScanResult[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    fetchRecentScans()
-  }, [])
-
-  const fetchRecentScans = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/scans`)
-      setScanResults(response.data)
-    } catch (error) {
-      console.error('Error fetching scans:', error)
-    }
-  }
-
-  const handleScanComplete = (result: ScanResult) => {
-    setScanResults([result, ...scanResults.slice(0, 9)]) // Keep only 10 most recent
-  }
-
-  return (
   const [scanResults, setScanResults] = useState<ScanResult[]>([])
   const [loading, setLoading] = useState(false)
 
