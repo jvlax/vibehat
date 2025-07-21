@@ -325,32 +325,41 @@ If you are the rightful owner of this package name, please contact us through ou
                 f.write(readme)
             
             # Create .pypirc for authentication
-            pypirc_content = f'''
-[distutils]
+            pypirc_path = package_dir / ".pypirc"
+            pypirc_content = f'''[distutils]
 index-servers = pypi
 
 [pypi]
 username = __token__
 password = {self.pypi_token}
 '''
-            
-            pypirc_path = Path.home() / ".pypirc"
             with open(pypirc_path, "w") as f:
                 f.write(pypirc_content)
             
             try:
-                # Build the package
-                subprocess.run(
-                    ["python", "setup.py", "sdist", "bdist_wheel"],
+                # Build the package using modern build module
+                build_result = subprocess.run(
+                    ["python", "-m", "build"],
                     cwd=package_dir,
                     capture_output=True,
                     text=True,
                     timeout=60
                 )
                 
-                # Upload to PyPI
+                if build_result.returncode != 0:
+                    return {
+                        "success": False,
+                        "package": package_name,
+                        "ecosystem": "pypi",
+                        "version": None,
+                        "message": f"Failed to build package '{package_name}': {build_result.stderr}",
+                        "pypi_url": None,
+                        "error": build_result.stderr
+                    }
+                
+                # Upload to PyPI with specific config file
                 result = subprocess.run(
-                    ["python", "-m", "twine", "upload", "dist/*"],
+                    ["python", "-m", "twine", "upload", "--config-file", str(pypirc_path), "dist/*"],
                     cwd=package_dir,
                     capture_output=True,
                     text=True,
