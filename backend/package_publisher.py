@@ -16,9 +16,20 @@ class PackagePublisher:
     def _is_test_package(self, package_name: str, ecosystem: str) -> bool:
         """Check if a package is in our test data manifest and should not be published"""
         try:
-            # Simple approach: check manifest file each time
-            manifest_path = Path(__file__).parent.parent / "test-data" / "FAKE_PACKAGES_MANIFEST.json"
-            if manifest_path.exists():
+            # Try multiple possible paths for the manifest
+            possible_paths = [
+                Path("/app/test-data/FAKE_PACKAGES_MANIFEST.json"),  # Docker container path
+                Path("test-data/FAKE_PACKAGES_MANIFEST.json"),      # Relative from /app
+                Path(__file__).parent.parent / "test-data" / "FAKE_PACKAGES_MANIFEST.json"  # Original path
+            ]
+            
+            manifest_path = None
+            for path in possible_paths:
+                if path.exists():
+                    manifest_path = path
+                    break
+            
+            if manifest_path:
                 with open(manifest_path, 'r') as f:
                     manifest = json.load(f)
                 
@@ -42,8 +53,9 @@ class PackagePublisher:
                 "success": False,
                 "package": package_name,
                 "ecosystem": ecosystem,
+                "version": None,
                 "message": f"PROTECTION: Refused to publish test package '{package_name}' from test data",
-                "error": "Test packages are protected from accidental publication"
+                "npm_url": None
             }
         
         if ecosystem == 'npm':
@@ -173,8 +185,10 @@ If you are the rightful owner of this package name, please contact us through ou
                         "success": False,
                         "package": package_name,
                         "ecosystem": "npm",
-                        "error": result.stderr,
-                        "stdout": result.stdout
+                        "version": None,
+                        "message": f"Failed to publish package '{package_name}' to NPM: {result.stderr}",
+                        "npm_url": None,
+                        "error": result.stderr
                     }
                     
             except Exception as e:
@@ -182,6 +196,9 @@ If you are the rightful owner of this package name, please contact us through ou
                     "success": False,
                     "package": package_name,
                     "ecosystem": "npm",
+                    "version": None,
+                    "message": f"Failed to publish package '{package_name}' to NPM: {str(e)}",
+                    "npm_url": None,
                     "error": str(e)
                 }
     
@@ -354,8 +371,10 @@ password = {self.pypi_token}
                         "success": False,
                         "package": package_name,
                         "ecosystem": "pypi",
-                        "error": result.stderr,
-                        "stdout": result.stdout
+                        "version": None,
+                        "message": f"Failed to publish package '{package_name}' to PyPI: {result.stderr}",
+                        "pypi_url": None,
+                        "error": result.stderr
                     }
                     
             except Exception as e:
@@ -363,6 +382,9 @@ password = {self.pypi_token}
                     "success": False,
                     "package": package_name,
                     "ecosystem": "pypi",
+                    "version": None,
+                    "message": f"Failed to publish package '{package_name}' to PyPI: {str(e)}",
+                    "pypi_url": None,
                     "error": str(e)
                 }
             finally:
