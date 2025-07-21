@@ -3,7 +3,7 @@ import json
 import subprocess
 import tempfile
 import shutil
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Set
 from pathlib import Path
 import httpx
 
@@ -12,9 +12,48 @@ class PackagePublisher:
         self.npm_token = os.getenv("NPM_TOKEN")
         self.pypi_token = os.getenv("PYPI_TOKEN")
         self.warning_website = os.getenv("WARNING_WEBSITE", "https://vibehat.dev/dependency-confusion")
+        self.test_packages = self._load_test_packages()
+    
+    def _load_test_packages(self) -> Dict[str, Set[str]]:
+        """Load the list of test packages that should never be published"""
+        try:
+            manifest_path = Path(__file__).parent.parent / "test-data" / "FAKE_PACKAGES_MANIFEST.json"
+            if manifest_path.exists():
+                with open(manifest_path, 'r') as f:
+                    manifest = json.load(f)
+                
+                fake_packages = manifest.get("fake_packages", {})
+                return {
+                    "npm": set(
+                        fake_packages.get("npm", {}).get("declared_dependencies", []) +
+                        fake_packages.get("npm", {}).get("undeclared_imports", [])
+                    ),
+                    "pypi": set(
+                        fake_packages.get("pypi", {}).get("declared_dependencies", []) +
+                        fake_packages.get("pypi", {}).get("undeclared_imports", [])
+                    )
+                }
+        except Exception as e:
+            print(f"Warning: Could not load test packages manifest: {e}")
+        
+        return {"npm": set(), "pypi": set()}
+    
+    def _is_test_package(self, package_name: str, ecosystem: str) -> bool:
+        """Check if a package is in our test data and should not be published"""
+        return package_name in self.test_packages.get(ecosystem, set())
         
     async def publish_warning_package(self, package_name: str, ecosystem: str, source_file: str = None) -> Dict[str, Any]:
         """Publish a warning package to the specified ecosystem"""
+        
+        # PROTECTION: Never publish test packages
+        if self._is_test_package(package_name, ecosystem):
+            return {
+                "success": False,
+                "package": package_name,
+                "ecosystem": ecosystem,
+                "error": f"PROTECTION: Refused to publish test package '{package_name}' from test data",
+                "message": "Test packages are protected from accidental publication"
+            }
         
         if ecosystem == 'npm':
             return await self._publish_npm_package(package_name, source_file)

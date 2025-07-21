@@ -13,6 +13,7 @@ import schemas
 from github_scanner import GitHubScanner
 from package_checker import PackageChecker
 from package_publisher import PackagePublisher
+from test_scan_consistency import ScanConsistencyTest
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -253,6 +254,45 @@ async def publish_batch_missing_packages(
                 "already_published": len([r for r in published_results if r["status"] == "already_published"]),
                 "failed": len([r for r in published_results if r["status"] in ["failed", "error"]])
             }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/test/scan-consistency")
+async def run_scan_consistency_test():
+    """Run scan consistency test to verify expected package counts and test integrity"""
+    try:
+        test = ScanConsistencyTest()
+        results = await test.run_scan_consistency_test()
+        
+        # Add formatted report to the response
+        report = test.generate_report(results)
+        results["formatted_report"] = report
+        
+        return results
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/test/package-protection")
+async def test_package_protection():
+    """Test that our package protection system works correctly"""
+    try:
+        # Try to publish a test package (should be blocked)
+        test_result = await package_publisher.publish_warning_package(
+            "ai-super-helper",  # This is a test package from our manifest
+            "npm",
+            "test-protection-system"
+        )
+        
+        return {
+            "protection_test": "attempted_to_publish_test_package",
+            "package_name": "ai-super-helper",
+            "ecosystem": "npm", 
+            "result": test_result,
+            "expected_result": "should_be_blocked",
+            "test_passed": not test_result.get("success", True)
         }
         
     except Exception as e:

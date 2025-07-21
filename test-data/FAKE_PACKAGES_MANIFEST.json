@@ -1,0 +1,124 @@
+{
+  "manifest_version": "1.0.0",
+  "created_date": "2025-01-21",
+  "description": "Comprehensive list of all fake packages used in VibeHat test data. These packages should NEVER be published to real registries.",
+  "warning": "DO NOT PUBLISH: These are intentionally fake packages for testing dependency confusion detection.",
+  
+  "fake_packages": {
+    "npm": {
+      "declared_dependencies": [
+        "ai-super-helper",
+        "ultra-ml-toolkit", 
+        "smart-data-processor",
+        "auto-code-generator",
+        "neural-network-utils",
+        "quantum-computing-lib",
+        "magic-optimization-tool",
+        "universal-api-connector",
+        "ai-sentiment-analyzer",
+        "blockchain-ml-bridge",
+        "test-framework-supreme",
+        "mock-data-factory",
+        "super-bundler-pro",
+        "real-library",
+        "fake-auth-middleware",
+        "imaginary-db-connector",
+        "non-existent-validator",
+        "mythical-cache-layer",
+        "fictional-logger"
+      ],
+      "undeclared_imports": [
+        "company-internal-utils",
+        "undeclared-helpers", 
+        "another-missing-package",
+        "dynamic-missing-lib",
+        "@company/secret-config",
+        "internal-api-client",
+        "custom-validator-lib",
+        "@company/auth-service",
+        "metrics-collector"
+      ]
+    },
+    "pypi": {
+      "declared_dependencies": [
+        "ai-powertools",
+        "super-ml-framework",
+        "quantum-data-processor", 
+        "neural-net-optimizer",
+        "smart-analytics-engine",
+        "auto-feature-extractor",
+        "magic-model-builder",
+        "ultra-prediction-lib",
+        "advanced-nlp-toolkit",
+        "mega-vision-processor",
+        "hyper-optimization-suite",
+        "cosmic-data-mining",
+        "intelligent-recommender",
+        "quantum-classifier",
+        "neural-search-engine",
+        "fake-data-science-lib",
+        "imaginary-pandas-extension",
+        "non-existent-plotting",
+        "mythical-stats-package",
+        "fictional-machine-learning",
+        "made-up-deep-learning"
+      ],
+      "undeclared_imports": [
+        "company_internal_tools",
+        "missing_data_processor",
+        "undeclared_auth",
+        "secret_config",
+        "proprietary_ml_lib",
+        "custom_analytics", 
+        "internal_db_client",
+        "runtime_import_missing_pkg",
+        "company_data_tools",
+        "secret_algorithm"
+      ]
+    }
+  },
+  
+  "expected_counts": {
+    "npm_declared": 19,
+    "npm_undeclared": 9,
+    "pypi_declared": 21,
+    "pypi_undeclared": 10,
+    "total_npm": 28,
+    "total_pypi": 31,
+    "total_fake_packages": 59
+  },
+  
+  "source_files": {
+    "npm_declared": [
+      "test-data/fake-npm-project/package.json",
+      "test-data/fake-mixed-project/package.json"
+    ],
+    "npm_undeclared": [
+      "test-data/fake-js-undeclared/index.js",
+      "test-data/fake-js-undeclared/utils/helper.js", 
+      "test-data/fake-mixed-undeclared/server.js"
+    ],
+    "pypi_declared": [
+      "test-data/fake-python-project/requirements.txt",
+      "test-data/fake-mixed-project/requirements.txt"
+    ],
+    "pypi_undeclared": [
+      "test-data/fake-python-undeclared/main.py",
+      "test-data/fake-python-undeclared/utils/data_processor.py",
+      "test-data/fake-mixed-undeclared/analysis.py"
+    ]
+  },
+  
+  "real_packages_in_test_data": {
+    "npm": ["express", "lodash", "jest"],
+    "pypi": ["requests", "flask", "pandas", "numpy"],
+    "note": "These are real packages used for testing mixed scenarios"
+  },
+  
+  "protection_rules": {
+    "never_publish": true,
+    "monitor_for_existence": true,
+    "alert_on_count_change": true,
+    "exclude_from_auto_publish": true
+  }
+} 
