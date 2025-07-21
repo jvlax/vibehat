@@ -30,6 +30,7 @@ class GitHubScanner:
                 ('Gemfile', 'rubygems'),
             ]
             
+            # Scan root level files
             for filename, ecosystem in dependency_files:
                 try:
                     file_content = repository.file_contents(filename)
@@ -43,11 +44,59 @@ class GitHubScanner:
                 except:
                     # File doesn't exist, continue
                     continue
+            
+            # Also scan subdirectories recursively
+            dependencies.extend(self._scan_subdirectories(repository, dependency_files))
                     
             return dependencies
             
         except Exception as e:
             raise Exception(f"Error scanning repository: {str(e)}")
+    
+    def _scan_subdirectories(self, repository, dependency_files, path="", max_depth=3, current_depth=0):
+        """Recursively scan subdirectories for dependency files"""
+        dependencies = []
+        
+        if current_depth >= max_depth:
+            return dependencies
+            
+        try:
+            # Get directory contents
+            contents = repository.directory_contents(path)
+            
+            for item in contents:
+                if item.type == 'dir':
+                    # Recursively scan subdirectories
+                    sub_deps = self._scan_subdirectories(
+                        repository, 
+                        dependency_files, 
+                        item.path, 
+                        max_depth, 
+                        current_depth + 1
+                    )
+                    dependencies.extend(sub_deps)
+                elif item.type == 'file':
+                    # Check if this file is a dependency file
+                    filename = item.name
+                    for dep_filename, ecosystem in dependency_files:
+                        if filename == dep_filename:
+                            try:
+                                file_content = repository.file_contents(item.path)
+                                if file_content:
+                                    deps = self._parse_dependency_file(
+                                        file_content.decoded.decode('utf-8'),
+                                        item.path,
+                                        ecosystem
+                                    )
+                                    dependencies.extend(deps)
+                            except:
+                                continue
+                            break
+        except:
+            # Directory doesn't exist or can't be accessed
+            pass
+            
+        return dependencies
     
     def _parse_dependency_file(self, content: str, filename: str, ecosystem: str) -> List[Dependency]:
         """Parse different types of dependency files"""
