@@ -328,8 +328,11 @@ class GitHubScanner:
                 if not self._is_external_package(package_name, ecosystem):
                     continue
                 
+                # Normalize the package name for registry checking
+                normalized_name = self._normalize_package_name(package_name, ecosystem)
+                
                 dependencies.append(Dependency(
-                    name=package_name,
+                    name=normalized_name,
                     version=None,
                     ecosystem=ecosystem,
                     file_path=file_path
@@ -368,8 +371,11 @@ class GitHubScanner:
                     if not self._is_external_package(top_level, ecosystem):
                         continue
                     
+                    # Normalize the package name for registry checking
+                    normalized_name = self._normalize_package_name(top_level, ecosystem)
+                    
                     dependencies.append(Dependency(
-                        name=top_level,
+                        name=normalized_name,
                         version=None,
                         ecosystem=ecosystem,
                         file_path=file_path
@@ -383,6 +389,14 @@ class GitHubScanner:
         
         # Skip relative imports
         if package_name.startswith('.'):
+            return False
+            
+        # Skip local modules (simple heuristic: if it matches common local file patterns)
+        local_patterns = [
+            'github_scanner', 'package_checker', 'models', 'schemas', 'database',
+            'main', 'config', 'utils', 'helpers', 'constants'
+        ]
+        if package_name in local_patterns:
             return False
             
         if ecosystem == 'npm':
@@ -409,4 +423,25 @@ class GitHubScanner:
             }
             return package_name not in python_builtins
             
-        return True 
+        return True
+    
+    def _normalize_package_name(self, import_name: str, ecosystem: str) -> str:
+        """Normalize import names to actual package names"""
+        
+        if ecosystem == 'pypi':
+            # Common Python package name mappings
+            mappings = {
+                'github3': 'github3.py',
+                'PIL': 'Pillow',
+                'cv2': 'opencv-python',
+                'sklearn': 'scikit-learn',
+                'yaml': 'PyYAML',
+                'dateutil': 'python-dateutil'
+            }
+            return mappings.get(import_name, import_name)
+            
+        elif ecosystem == 'npm':
+            # Common npm package name mappings could go here
+            return import_name
+            
+        return import_name 
