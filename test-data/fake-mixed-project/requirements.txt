@@ -1,0 +1,9 @@
+# Mixed real and fake dependencies
+requests==2.31.0
+numpy==1.24.3
+fake-data-science-lib==2.1.0
+imaginary-pandas-extension==1.5.2
+non-existent-plotting==3.0.1
+mythical-stats-package==2.7.4
+fictional-machine-learning==4.1.0
+made-up-deep-learning==1.8.9 

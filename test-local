@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Build and start all services
+echo "🚀 Starting VibeHat services..."
+
+# Stop any existing containers
+docker-compose down
+
+# Build and start
+docker-compose up --build
+
+echo "✅ Services started!"
+echo "Frontend: http://localhost:3000"
+echo "Backend API: http://localhost:8000"
+echo "Database: localhost:5432" 

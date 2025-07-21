@@ -1,0 +1,23 @@
+{
+  "name": "fake-ai-generated-project",
+  "version": "1.0.0",
+  "description": "A test project with fake AI-generated dependencies",
+  "main": "index.js",
+  "dependencies": {
+    "ai-super-helper": "^2.1.0",
+    "ultra-ml-toolkit": "^1.5.3",
+    "smart-data-processor": "^3.0.1",
+    "auto-code-generator": "^4.2.7",
+    "neural-network-utils": "^1.8.2",
+    "quantum-computing-lib": "^0.9.4",
+    "magic-optimization-tool": "^2.3.1",
+    "universal-api-connector": "^1.2.9",
+    "ai-sentiment-analyzer": "^3.1.5",
+    "blockchain-ml-bridge": "^2.0.8"
+  },
+  "devDependencies": {
+    "test-framework-supreme": "^5.1.2",
+    "mock-data-factory": "^1.7.3",
+    "super-bundler-pro": "^4.0.1"
+  }
+} 

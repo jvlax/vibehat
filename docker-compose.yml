@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: vibehat
+      POSTGRES_USER: vibehat
+      POSTGRES_PASSWORD: vibehat_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - vibehat-network
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://vibehat:vibehat_dev@db:5432/vibehat
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    networks:
+      - vibehat-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - vibehat-network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+
+networks:
+  vibehat-network:
+    driver: bridge 
