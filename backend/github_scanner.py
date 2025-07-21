@@ -49,8 +49,21 @@ class GitHubScanner:
             # Also scan subdirectories recursively
             sub_deps = self._scan_subdirectories(repository, dependency_files)
             dependencies.extend(sub_deps)
+            
+            # NEW: Scan source code files for import statements
+            source_deps = self._scan_source_files(repository)
+            dependencies.extend(source_deps)
+            
+            # Deduplicate dependencies by name and ecosystem
+            seen = set()
+            unique_dependencies = []
+            for dep in dependencies:
+                key = (dep.name, dep.ecosystem)
+                if key not in seen:
+                    seen.add(key)
+                    unique_dependencies.append(dep)
                     
-            return dependencies
+            return unique_dependencies
             
         except Exception as e:
             raise Exception(f"Error scanning repository: {str(e)}")
@@ -202,4 +215,198 @@ class GitHubScanner:
                         file_path='Cargo.toml'
                     ))
         
-        return dependencies 
+        return dependencies
+    
+    def _scan_source_files(self, repository, path="", max_depth=3, current_depth=0):
+        """Scan source code files for import statements"""
+        dependencies = []
+        
+        if current_depth >= max_depth:
+            return dependencies
+            
+        # Source file extensions to scan
+        source_extensions = {
+            '.js': 'npm',
+            '.jsx': 'npm', 
+            '.ts': 'npm',
+            '.tsx': 'npm',
+            '.py': 'pypi',
+            '.go': 'go',
+            '.rs': 'cargo',
+            '.php': 'packagist',
+            '.rb': 'rubygems'
+        }
+        
+        try:
+            # Get directory contents
+            contents = list(repository.directory_contents(path))
+            
+            for item in contents:
+                # Handle tuple structure from github3.py directory_contents
+                if isinstance(item, tuple) and len(item) == 2:
+                    item_name, content_obj = item
+                    item_type = content_obj.type
+                    item_path = content_obj.path
+                else:
+                    # Fallback for object structure
+                    item_name = item.name
+                    item_type = item.type
+                    item_path = item.path
+                
+                if item_type == 'dir':
+                    # Skip common directories that don't contain source code
+                    if item_name not in ['node_modules', '.git', '__pycache__', 'target', 'vendor', 'dist', 'build']:
+                        # Recursively scan subdirectories
+                        sub_deps = self._scan_source_files(
+                            repository, 
+                            item_path, 
+                            max_depth, 
+                            current_depth + 1
+                        )
+                        dependencies.extend(sub_deps)
+                elif item_type == 'file':
+                    # Check if this is a source file we can parse
+                    file_ext = None
+                    for ext in source_extensions:
+                        if item_name.endswith(ext):
+                            file_ext = ext
+                            break
+                    
+                    if file_ext:
+                        try:
+                            file_content = repository.file_contents(item_path)
+                            if file_content:
+                                deps = self._parse_source_file(
+                                    file_content.decoded.decode('utf-8'),
+                                    item_path,
+                                    source_extensions[file_ext]
+                                )
+                                dependencies.extend(deps)
+                        except Exception as e:
+                            # Skip files that can't be read
+                            continue
+        except Exception as e:
+            # Directory doesn't exist or can't be accessed
+            pass
+            
+        return dependencies
+    
+    def _parse_source_file(self, content: str, file_path: str, ecosystem: str) -> List[Dependency]:
+        """Parse source code files for import statements"""
+        dependencies = []
+        
+        if ecosystem == 'npm':
+            dependencies.extend(self._parse_javascript_imports(content, file_path, ecosystem))
+        elif ecosystem == 'pypi':
+            dependencies.extend(self._parse_python_imports(content, file_path, ecosystem))
+        # Add more parsers for other ecosystems as needed
+        
+        return dependencies
+    
+    def _parse_javascript_imports(self, content: str, file_path: str, ecosystem: str) -> List[Dependency]:
+        """Parse JavaScript/TypeScript imports and requires"""
+        dependencies = []
+        
+        # Patterns for different import styles
+        patterns = [
+            # require('package')
+            r"require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+            # import ... from 'package'
+            r"import\s+.*?\s+from\s+['\"]([^'\"]+)['\"]",
+            # import 'package'
+            r"import\s+['\"]([^'\"]+)['\"]",
+            # import('package') - dynamic imports
+            r"import\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+        ]
+        
+        for pattern in patterns:
+            matches = re.finditer(pattern, content, re.MULTILINE)
+            for match in matches:
+                package_name = match.group(1)
+                
+                # Filter out relative imports and built-in modules
+                if not self._is_external_package(package_name, ecosystem):
+                    continue
+                
+                dependencies.append(Dependency(
+                    name=package_name,
+                    version=None,
+                    ecosystem=ecosystem,
+                    file_path=file_path
+                ))
+        
+        return dependencies
+    
+    def _parse_python_imports(self, content: str, file_path: str, ecosystem: str) -> List[Dependency]:
+        """Parse Python import statements"""
+        dependencies = []
+        
+        # Patterns for different import styles
+        patterns = [
+            # import package
+            r"^import\s+([a-zA-Z0-9_][a-zA-Z0-9_\.]*)",
+            # from package import ...
+            r"^from\s+([a-zA-Z0-9_][a-zA-Z0-9_\.]*)\s+import",
+        ]
+        
+        for line in content.split('\n'):
+            line = line.strip()
+            
+            # Skip comments
+            if line.startswith('#'):
+                continue
+                
+            for pattern in patterns:
+                match = re.match(pattern, line)
+                if match:
+                    package_name = match.group(1)
+                    
+                    # Get the top-level package name
+                    top_level = package_name.split('.')[0]
+                    
+                    # Filter out relative imports and built-in modules
+                    if not self._is_external_package(top_level, ecosystem):
+                        continue
+                    
+                    dependencies.append(Dependency(
+                        name=top_level,
+                        version=None,
+                        ecosystem=ecosystem,
+                        file_path=file_path
+                    ))
+                    break
+        
+        return dependencies
+    
+    def _is_external_package(self, package_name: str, ecosystem: str) -> bool:
+        """Check if a package name refers to an external package (not relative/built-in)"""
+        
+        # Skip relative imports
+        if package_name.startswith('.'):
+            return False
+            
+        if ecosystem == 'npm':
+            # Skip Node.js built-in modules
+            node_builtins = {
+                'fs', 'path', 'http', 'https', 'url', 'crypto', 'os', 'util', 
+                'events', 'stream', 'buffer', 'child_process', 'cluster', 
+                'dgram', 'dns', 'net', 'querystring', 'readline', 'repl',
+                'string_decoder', 'tls', 'tty', 'vm', 'zlib', 'assert',
+                'console', 'constants', 'domain', 'punycode', 'timers'
+            }
+            return package_name not in node_builtins
+            
+        elif ecosystem == 'pypi':
+            # Skip Python standard library modules
+            python_builtins = {
+                'os', 'sys', 'json', 're', 'time', 'datetime', 'math', 'random',
+                'collections', 'itertools', 'functools', 'operator', 'pathlib',
+                'urllib', 'http', 'email', 'html', 'xml', 'sqlite3', 'csv',
+                'configparser', 'logging', 'unittest', 'doctest', 'pdb',
+                'profile', 'timeit', 'trace', 'gc', 'weakref', 'copy',
+                'pickle', 'copyreg', 'shelve', 'marshal', 'dbm', 'sqlite3',
+                'zlib', 'gzip', 'bz2', 'lzma', 'zipfile', 'tarfile'
+            }
+            return package_name not in python_builtins
+            
+        return True 

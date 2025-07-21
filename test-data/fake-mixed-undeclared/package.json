@@ -1,0 +1,11 @@
+{
+  "name": "fake-mixed-undeclared",
+  "version": "1.0.0",
+  "description": "Mixed project with both declared and undeclared dependencies",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  }
+} 
