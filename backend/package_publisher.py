@@ -210,27 +210,65 @@ If you are the rightful owner of this package name, please contact us through ou
         
         # Create temporary directory for package
         with tempfile.TemporaryDirectory() as temp_dir:
-            package_dir = Path(temp_dir) / package_name.replace("-", "_")
-            package_dir.mkdir()
+            package_dir = Path(temp_dir)
+            
+            # Create package directory
+            pkg_dir = package_dir / package_name.replace("-", "_")
+            pkg_dir.mkdir(parents=True)
             
             # Create setup.py
-            setup_py = f'''
-from setuptools import setup, find_packages
+            setup_py = f'''from setuptools import setup, find_packages
+
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
     name="{package_name}",
     version="1.0.0",
     description="⚠️ SECURITY WARNING: This package was auto-generated to prevent dependency confusion attacks",
-    long_description=open("README.md").read(),
+    long_description=long_description,
     long_description_content_type="text/markdown",
     author="VibeHat Security Research",
     author_email="security@vibehat.dev",
     url="{self.warning_website}",
     packages=find_packages(),
+    license="MIT",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "Topic :: Security",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+    ],
+    keywords="security dependency-confusion vulnerability-research vibehat",
+    python_requires=">=3.6",
+)
+'''
+            
+            # Create setup.py with proper structure
+            setup_py = f'''from setuptools import setup, find_packages
+
+setup(
+    name="{package_name}",
+    version="1.0.0",
+    description="⚠️ SECURITY WARNING: This package was auto-generated to prevent dependency confusion attacks",
+    long_description=open("README.md", "r", encoding="utf-8").read(),
+    long_description_content_type="text/markdown",
+    author="VibeHat Security Research",
+    author_email="security@vibehat.dev",
+    url="{self.warning_website}",
+    packages=["{package_name.replace('-', '_')}"],
+    license="MIT",
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Topic :: Security", 
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
     ],
@@ -242,11 +280,7 @@ setup(
             with open(package_dir / "setup.py", "w") as f:
                 f.write(setup_py)
             
-            # Create package directory
-            pkg_dir = package_dir / package_name.replace("-", "_")
-            pkg_dir.mkdir()
-            
-            # Create __init__.py with warning
+            # Create __init__.py with warning in the package directory
             init_py = f'''
 """
 🚨 DEPENDENCY CONFUSION VULNERABILITY DETECTED 🚨
@@ -337,9 +371,9 @@ password = {self.pypi_token}
                 f.write(pypirc_content)
             
             try:
-                # Build the package using modern build module
+                # Build the package using setuptools directly
                 build_result = subprocess.run(
-                    ["python", "-m", "build"],
+                    ["python", "setup.py", "sdist", "bdist_wheel"],
                     cwd=package_dir,
                     capture_output=True,
                     text=True,
@@ -352,13 +386,13 @@ password = {self.pypi_token}
                         "package": package_name,
                         "ecosystem": "pypi",
                         "version": None,
-                        "message": f"Failed to build package '{package_name}': {build_result.stderr}",
+                        "message": f"Failed to build package '{package_name}': {build_result.stderr or build_result.stdout}",
                         "pypi_url": None,
-                        "error": build_result.stderr
+                        "error": build_result.stderr or build_result.stdout
                     }
                 
                 # Upload to PyPI with specific config file
-                result = subprocess.run(
+                upload_result = subprocess.run(
                     ["python", "-m", "twine", "upload", "--config-file", str(pypirc_path), "dist/*"],
                     cwd=package_dir,
                     capture_output=True,
@@ -366,7 +400,7 @@ password = {self.pypi_token}
                     timeout=60
                 )
                 
-                if result.returncode == 0:
+                if upload_result.returncode == 0:
                     return {
                         "success": True,
                         "package": package_name,
@@ -381,9 +415,9 @@ password = {self.pypi_token}
                         "package": package_name,
                         "ecosystem": "pypi",
                         "version": None,
-                        "message": f"Failed to publish package '{package_name}' to PyPI: {result.stderr}",
+                        "message": f"Failed to publish package '{package_name}' to PyPI: {upload_result.stderr or upload_result.stdout}",
                         "pypi_url": None,
-                        "error": result.stderr
+                        "error": upload_result.stderr or upload_result.stdout
                     }
                     
             except Exception as e:
