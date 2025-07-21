@@ -19,6 +19,7 @@ class GitHubScanner:
         
         try:
             repository = self.github.repository(owner, repo)
+
             
             # Scan different dependency files
             dependency_files = [
@@ -46,7 +47,8 @@ class GitHubScanner:
                     continue
             
             # Also scan subdirectories recursively
-            dependencies.extend(self._scan_subdirectories(repository, dependency_files))
+            sub_deps = self._scan_subdirectories(repository, dependency_files)
+            dependencies.extend(sub_deps)
                     
             return dependencies
             
@@ -62,37 +64,48 @@ class GitHubScanner:
             
         try:
             # Get directory contents
-            contents = repository.directory_contents(path)
+            contents = list(repository.directory_contents(path))
             
             for item in contents:
-                if item.type == 'dir':
+                # Handle tuple structure from github3.py directory_contents
+                if isinstance(item, tuple) and len(item) == 2:
+                    item_name, content_obj = item
+                    item_type = content_obj.type
+                    item_path = content_obj.path
+                else:
+                    # Fallback for object structure
+                    item_name = item.name
+                    item_type = item.type
+                    item_path = item.path
+                
+                if item_type == 'dir':
                     # Recursively scan subdirectories
                     sub_deps = self._scan_subdirectories(
                         repository, 
                         dependency_files, 
-                        item.path, 
+                        item_path, 
                         max_depth, 
                         current_depth + 1
                     )
                     dependencies.extend(sub_deps)
-                elif item.type == 'file':
+                elif item_type == 'file':
                     # Check if this file is a dependency file
-                    filename = item.name
+                    filename = item_name
                     for dep_filename, ecosystem in dependency_files:
                         if filename == dep_filename:
                             try:
-                                file_content = repository.file_contents(item.path)
+                                file_content = repository.file_contents(item_path)
                                 if file_content:
                                     deps = self._parse_dependency_file(
                                         file_content.decoded.decode('utf-8'),
-                                        item.path,
+                                        item_path,
                                         ecosystem
                                     )
                                     dependencies.extend(deps)
-                            except:
+                            except Exception as e:
                                 continue
                             break
-        except:
+        except Exception as e:
             # Directory doesn't exist or can't be accessed
             pass
             
@@ -102,11 +115,11 @@ class GitHubScanner:
         """Parse different types of dependency files"""
         dependencies = []
         
-        if filename == 'package.json':
+        if filename.endswith('package.json'):
             dependencies.extend(self._parse_package_json(content, ecosystem))
-        elif filename == 'requirements.txt':
+        elif filename.endswith('requirements.txt'):
             dependencies.extend(self._parse_requirements_txt(content, ecosystem))
-        elif filename == 'Cargo.toml':
+        elif filename.endswith('Cargo.toml'):
             dependencies.extend(self._parse_cargo_toml(content, ecosystem))
         # Add more parsers as needed
         
