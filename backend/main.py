@@ -4,10 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import re
 import os
-from typing import Optional
+import json
+from typing import Optional, List
 
 # Real imports
-from database import get_db
+from database import get_db, engine
 import models
 import schemas
 from github_scanner import GitHubScanner
@@ -16,9 +17,9 @@ from package_publisher import PackagePublisher
 from test_scan_consistency import ScanConsistencyTest
 
 # Made-up imports that don't exist - these should be detected and publishable
-import super_awesome_helper  # This doesn't exist and isn't in our test manifest
-from magical_utils import process_data  # This also doesn't exist
-import demo_package_for_testing  # Another fake one
+# import super_awesome_helper  # This doesn't exist and isn't in our test manifest
+# from magical_utils import process_data  # This also doesn't exist
+# import demo_package_for_testing  # Another fake one
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
